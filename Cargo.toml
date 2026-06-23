@@ -1,0 +1,11 @@
+# Workspace root. The engine crate lives in engine-src/ so Rust sources stay
+# separate from the Claude Code plugin packaging (skills/, references/, setup/).
+[workspace]
+resolver = "2"
+members = ["engine-src"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/pleaseai/adaptive-fetch"
+authors = ["Minsu Lee <minsu.lee@dietfriends.kr>"]

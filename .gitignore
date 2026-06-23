@@ -1,0 +1,20 @@
+# Rust build output
+/target
+**/*.rs.bk
+
+# Cargo.lock IS committed (this is a binary/application crate) — do not ignore it.
+
+# Downloaded prebuilt engine binary (M6 setup.sh fetches the platform asset here)
+/skills/adaptive-fetch/engine/bin/
+
+# Node deps for the Playwright fallback templates (M4)
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.swp
