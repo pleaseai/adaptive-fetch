@@ -1,0 +1,72 @@
+engine-src/src/transport.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-7
+orca.yaml
+  s_d3416586d5d2f3::t_e4b04f19469dab 1-19
+engine-src/src/validators.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-8
+engine-src/src/safety.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-7
+engine-src/src/main.rs
+  s_d3416586d5d2f3::t_eeddcb6fb73f4a 1-76,78-81,83-105
+  s_d3416586d5d2f3::t_5c2f4f5e10b05c 77,82
+engine-src/src/waf_detector.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-8
+engine-src/src/options.rs
+  s_d3416586d5d2f3::t_c94e23c8d57957 1-59
+engine-src/src/result.rs
+  s_d3416586d5d2f3::t_3313679bb3e754 1-110
+engine-src/src/url_transforms.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-6
+.gitignore
+  s_d3416586d5d2f3::t_eb1086be5a2a98 1-20
+README.md
+  s_d3416586d5d2f3::t_05c64c8a05c99f 1-39
+.github/workflows/ci.yml
+  s_d3416586d5d2f3::t_2cbe952145b7a5 1-26
+engine-src/src/scheduler.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-9
+Cargo.toml
+  s_d3416586d5d2f3::t_7a82a66cecdb6c 1-11
+rustfmt.toml
+  s_d3416586d5d2f3::t_c4e11bf72d86b4 1-2
+.claude-plugin/plugin.json
+  s_d3416586d5d2f3::t_13f35201eaf856 1-22
+docs/rfcs/0001-adaptive-fetch.md
+  s_d3416586d5d2f3::t_6af4224061d2d3 5,8-10
+  s_d3416586d5d2f3::t_c795b087028b97 363
+  s_d3416586d5d2f3::t_f87319d0473f2f 1-4,6-7,11-22
+  s_d3416586d5d2f3::t_f013f8c02cf263 65
+mise.toml
+  s_d3416586d5d2f3::t_363d58d1d7c026 1-28
+engine-src/Cargo.toml
+  s_d3416586d5d2f3::t_2e3aaae8d70bfb 1-27
+engine-src/src/executor.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-3,5-7,9-11
+  s_d3416586d5d2f3::t_70208e1adccf5c 4,8
+.worktreeinclude
+  s_d3416586d5d2f3::t_25bab945dda772 1-10
+skills/adaptive-fetch/SKILL.md
+  s_d3416586d5d2f3::t_d37f778c8d3549 1-28
+engine-src/src/lib.rs
+  s_d3416586d5d2f3::t_fec79d931e94f1 1-92
+engine-src/src/learning.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-8
+engine-src/src/phase0.rs
+  s_d3416586d5d2f3::t_8b520120eeb7f6 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "8b82c2eb913616be572a939b9241fb380c5583cb",
+  "prompts": {},
+  "sessions": {
+    "s_d3416586d5d2f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "53276796-cf1d-4714-b12f-195054f732a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
