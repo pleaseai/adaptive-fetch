@@ -1,5 +1,8 @@
 # adaptive-fetch
 
+[![CI](https://github.com/pleaseai/adaptive-fetch/actions/workflows/ci.yml/badge.svg)](https://github.com/pleaseai/adaptive-fetch/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 A resilient, **site-agnostic** public-page reader for Claude Code. When a fetch
 is blocked (402 / 403 / WAF / CAPTCHA), `adaptive-fetch` automatically tries every
 bypass strategy until one works — no API keys, no proxy setup.
