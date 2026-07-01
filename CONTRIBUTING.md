@@ -22,7 +22,6 @@ cargo build         # build the engine crate
 
 ```bash
 mise run check      # fmt-check + clippy + test (mirrors CI)
-cargo test          # run the test suite
 cargo build         # ensure it builds
 ```
 
