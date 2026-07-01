@@ -1,0 +1,28 @@
+# Pinned local toolchain (Skill("standards:dev-tooling")).
+#   rust — the engine (engine-src/). curl_cffi's Rust analogue (rquest/wreq) is a
+#          plain crate, so the toolchain is just rust + cargo.
+#   bun  — tooling only: @pleaseai/worktreeinclude in orca.yaml, and (M6) the
+#          optional npm-distributed wrapper. The engine itself needs no JS.
+[tools]
+rust = { version = "1.94", components = "rustfmt,clippy", profile = "minimal" }
+bun = "latest"
+
+[tasks.build]
+run = "cargo build"
+
+[tasks.test]
+run = "cargo test"
+
+[tasks.fmt]
+run = "cargo fmt --all"
+
+[tasks.fmt-check]
+run = "cargo fmt --all -- --check"
+
+[tasks.lint]
+run = "cargo clippy --all-targets -- -D warnings"
+
+# One command for the full local gate (mirrors CI).
+[tasks.check]
+depends = ["fmt-check", "lint"]
+run = "cargo test --locked"

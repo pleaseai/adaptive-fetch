@@ -1,0 +1,19 @@
+# orca.yaml — setup script run when Orca creates a worktree (committed, team-shared).
+# Rust + mise variant. Details: Skill("standards:dev-tooling") -> references/worktree-setup.md
+#
+# Injected environment variables:
+#   $ORCA_ROOT_PATH     — main checkout (source for copying gitignored local files)
+#   $ORCA_WORKTREE_PATH — the newly created worktree (copy target + setup cwd)
+
+scripts:
+  setup: |
+    set -e
+    # 1. Trust the new worktree's mise.toml (trust is per-path).
+    mise trust --quiet
+    # 2. Install the pinned toolchain (rust + bun) declared in mise.toml [tools].
+    mise install
+    # 3. Copy gitignored local files (.env, .claude/settings.local.json) into the worktree.
+    #    Run via `mise exec -- bunx` so the mise-installed bun is used regardless of host PATH.
+    mise exec -- bunx @pleaseai/worktreeinclude "$ORCA_ROOT_PATH" "$ORCA_WORKTREE_PATH"
+    # 4. Pre-fetch crate dependencies so the first build in the worktree is fast.
+    mise exec -- cargo fetch

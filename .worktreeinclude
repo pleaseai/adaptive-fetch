@@ -1,0 +1,10 @@
+# Files copied into a new worktree (gitignored files matching these patterns).
+# .gitignore syntax. Details: Skill("standards:dev-tooling") -> references/worktree-setup.md
+
+# Root environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Claude Code local settings (the symlink is gitignored via .git/info/exclude)
+.claude/settings.local.json
