@@ -18,3 +18,6 @@ node_modules/
 # OS / editor
 .DS_Store
 *.swp
+
+# Claude Code local settings (internal marketplace config, telemetry labels)
+.claude/settings.local.json
