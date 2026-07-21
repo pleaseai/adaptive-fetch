@@ -1,0 +1,23 @@
+mise.toml
+  s_ce81ad51033e7e::t_ba3805fcded330 8
+.github/workflows/ci.yml
+  s_ce81ad51033e7e::t_ebad08f9710e46 21-22
+engine-src/src/result.rs
+  s_ce81ad51033e7e::t_565e360227f8a7 80-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "7e7b1ca5008ec94d024a6a4e8841560138ebbc98",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
