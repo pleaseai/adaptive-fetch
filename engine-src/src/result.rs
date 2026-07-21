@@ -77,8 +77,9 @@ pub struct Attempt {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FetchResult {
     pub ok: bool,
-    /// Fetched body. TODO(M1): exclude from `--json` (emit `content_length`
-    /// instead) so large HTML never bloats the trace output.
+    /// Fetched body. Excluded from `--json` via `#[serde(skip)]`.
+    /// TODO(M1): add a serialized `content_length` field so JSON consumers
+    /// can inspect body size without the full text bloating the trace output.
     #[serde(skip)]
     pub content: String,
     pub final_url: String,
