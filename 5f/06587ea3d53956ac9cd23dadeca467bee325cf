@@ -1,0 +1,21 @@
+.github/workflows/audit.yml
+  s_ce81ad51033e7e::t_f382848c12d66e 1-32
+.github/workflows/zizmor.yml
+  s_ce81ad51033e7e::t_12e9d72d2425d4 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "5f06587ea3d53956ac9cd23dadeca467bee325cf",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
