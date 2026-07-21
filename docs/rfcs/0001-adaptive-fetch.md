@@ -169,7 +169,10 @@ Port `validators.rs` as a layered AND check (insane-search's `validators.py`):
 
 Verdict enum: `StrongOk`, `WeakOk`, `SuspectOk`(non-terminal), `Challenge`,
 `Blocked`, `RateLimited`, `AuthRequired`, `NotFound`, `Unknown`. Terminal-nonsuccess
-= {`AuthRequired`, `NotFound`, `RateLimited`} (stop the TLS grid — more handshakes won't help).
+= {`AuthRequired`, `NotFound`} (give up — no route recovers the resource).
+Grid-stop = terminal-nonsuccess ∪ {`RateLimited`}: a 429 also halts the TLS grid
+(more handshakes won't help — don't hammer), but stays a transient
+back-off-and-retry route via the failure gate, not a give-up.
 
 ### 4.3 Phase 0 — official public-API router (the only site-aware module)
 

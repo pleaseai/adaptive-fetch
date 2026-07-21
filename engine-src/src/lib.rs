@@ -82,6 +82,12 @@ mod tests {
         assert!(!Verdict::SuspectOk.is_ok());
         assert!(Verdict::NotFound.is_terminal_nonsuccess());
         assert!(!Verdict::Challenge.is_terminal_nonsuccess());
+        // 429 is transient, not terminal — but it still stops the TLS grid
+        // (don't hammer). The two predicates are deliberately distinct.
+        assert!(!Verdict::RateLimited.is_terminal_nonsuccess());
+        assert!(Verdict::RateLimited.is_grid_stop());
+        assert!(Verdict::NotFound.is_grid_stop());
+        assert!(!Verdict::Challenge.is_grid_stop());
     }
 
     #[test]

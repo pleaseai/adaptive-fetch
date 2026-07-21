@@ -40,13 +40,20 @@ impl Verdict {
         matches!(self, Verdict::StrongOk | Verdict::WeakOk)
     }
 
-    /// "Stop the grid — more TLS attempts cannot help." 429 is included here
-    /// (don't hammer) but is surfaced as a *transient* route by the failure gate.
+    /// Truly terminal — no bypass route can recover this resource, so give up.
+    /// `RateLimited` is deliberately **excluded**: a 429 is transient (back off
+    /// and retry), not a wall. To decide whether to stop the current TLS grid,
+    /// use [`Verdict::is_grid_stop`] instead.
     pub fn is_terminal_nonsuccess(self) -> bool {
-        matches!(
-            self,
-            Verdict::AuthRequired | Verdict::NotFound | Verdict::RateLimited
-        )
+        matches!(self, Verdict::AuthRequired | Verdict::NotFound)
+    }
+
+    /// Stop the current TLS grid — more handshakes won't help *right now*. This
+    /// is the terminal set plus `RateLimited`: a 429 halts the grid so we don't
+    /// hammer, but the failure gate still surfaces it as a transient
+    /// back-off-and-retry route, not a give-up (RFC 0001 §4.6).
+    pub fn is_grid_stop(self) -> bool {
+        self.is_terminal_nonsuccess() || matches!(self, Verdict::RateLimited)
     }
 }
 
