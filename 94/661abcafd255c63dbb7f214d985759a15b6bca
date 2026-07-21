@@ -1,0 +1,23 @@
+engine-src/src/result.rs
+  s_ce81ad51033e7e::t_85960559e8c2e3 43-46,48-56
+engine-src/src/lib.rs
+  s_ce81ad51033e7e::t_218989c751b57f 85-90
+docs/rfcs/0001-adaptive-fetch.md
+  s_ce81ad51033e7e::t_893048adecf724 172-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "94661abcafd255c63dbb7f214d985759a15b6bca",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
