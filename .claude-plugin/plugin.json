@@ -1,0 +1,22 @@
+{
+  "name": "adaptive-fetch",
+  "version": "0.0.0",
+  "description": "Resilient, site-agnostic public-page reader for Claude Code — auto-bypasses blocked sites (403/WAF/CAPTCHA) via a Rust engine with browser TLS-fingerprint impersonation, a diversity-ordered fetch grid, and a no-give-up failure gate. No API keys.",
+  "author": {
+    "name": "Minsu Lee",
+    "url": "https://github.com/amondnet"
+  },
+  "homepage": "https://github.com/pleaseai/adaptive-fetch",
+  "repository": "https://github.com/pleaseai/adaptive-fetch",
+  "license": "MIT",
+  "keywords": [
+    "web-access",
+    "webfetch",
+    "bypass",
+    "waf",
+    "tls-impersonation",
+    "rust",
+    "playwright",
+    "scraping"
+  ]
+}
