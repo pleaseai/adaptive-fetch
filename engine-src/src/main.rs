@@ -87,7 +87,14 @@ fn main() -> ExitCode {
         }
         if !result.ok && !result.untried_routes.is_empty() {
             // R6: give-up is never silent — the agent must continue these routes.
-            eprintln!("\n\u{26d4} NOT EXHAUSTED — untried routes remain:");
+            // RFC 0001 §4.6 separates (a) grid not exhausted → re-run exhaustive,
+            // from (b) grid exhausted → re-running won't help; the listed routes
+            // (e.g. Playwright MCP) are the only remaining escalation.
+            if result.grid_exhausted {
+                eprintln!("\n\u{26d4} GRID EXHAUSTED — escalation routes remain:");
+            } else {
+                eprintln!("\n\u{26d4} NOT EXHAUSTED — untried routes remain:");
+            }
             for route in &result.untried_routes {
                 eprintln!("  - {route}");
             }
