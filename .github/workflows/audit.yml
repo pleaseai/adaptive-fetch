@@ -51,4 +51,10 @@ jobs:
       - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
         with:
           tool: cargo-audit
-      - run: cargo audit
+      - run: |
+          # The fork controls the checked-out tree, including a
+          # .cargo/audit.toml whose `ignore` list could silence the very
+          # advisory it introduces. Drop it so the gate uses cargo-audit's
+          # strict defaults and cannot be bypassed.
+          rm -f .cargo/audit.toml
+          cargo audit

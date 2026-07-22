@@ -52,7 +52,10 @@ jobs:
   # outside the PR trust boundary.
   upload:
     needs: test
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    # Run even when `test` failed (so Codecov still receives failing test
+    # results), but never when cancelled, and only for same-repo events where
+    # OIDC is available.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
