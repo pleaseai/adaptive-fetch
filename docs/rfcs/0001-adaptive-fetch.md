@@ -87,9 +87,13 @@ Python package.
 adaptive-fetch/
 ├─ .claude-plugin/
 │  └─ plugin.json                  # plugin manifest
+├─ hooks.json                      # PreToolUse(WebFetch) hook registration
+├─ hooks/
+│  └─ webfetch-guard.sh            # fail-open guard: check-url → deny + redirect
 ├─ skills/
 │  └─ adaptive-fetch/
 │     ├─ SKILL.md                  # harness rules R1–R7 + Phase 0 index + usage
+│     ├─ url_presets.toml          # caller-editable per-host routing presets (runtime)
 │     ├─ references/               # on-demand deep docs (tls, playwright, apis…)
 │     │  ├─ tls-impersonate.md
 │     │  ├─ playwright.md
@@ -106,6 +110,7 @@ adaptive-fetch/
 │  └─ src/
 │     ├─ main.rs                   # CLI entrypoint + JSON output
 │     ├─ lib.rs                    # `fetch(url, opts) -> FetchResult`
+│     ├─ presets.rs                # host-glob URL presets + `check-url` matching
 │     ├─ scheduler.rs              # diversity planner + grid + failure gate (R6)
 │     ├─ transport.rs              # rquest session pool, warmup, cookie bridge
 │     ├─ validators.rs             # 4-layer validation, Verdict enum
@@ -133,6 +138,29 @@ Library form (`fetch`) returns a `FetchResult` with the same fields insane-searc
 exposes: `ok`, `content`, `final_url`, `verdict`, `profile_used`, `trace[]`,
 `planned_attempts`, `executed_attempts`, `grid_exhausted`, `stop_reason`,
 `untried_routes[]`, `must_invoke_playwright_mcp`.
+
+### 3.1 WebFetch hook + URL presets
+
+A `PreToolUse` hook (`hooks.json` → `hooks/webfetch-guard.sh`) intercepts
+`WebFetch` calls *before* they run and, for hosts a user has flagged as hard,
+steers them through the engine instead of letting `WebFetch` fail first. The hook
+shells out to a site-agnostic `adaptive-fetch check-url "<URL>" --presets <file>
+--json` subcommand, which matches the URL's **hostname** against
+`skills/adaptive-fetch/url_presets.toml` (first host-glob match wins) and, on a
+match, tells the hook to **deny** the built-in `WebFetch` with a
+`permissionDecision` reason carrying the suggested `adaptive-fetch …` command.
+Host-scoped matching (not full-URL) keeps a glob from crossing path boundaries and
+lets bare origins match without a trailing slash.
+
+Invariant fit: the `check-url` code (`engine-src/src/presets.rs`) names no site —
+domains live only in `url_presets.toml`, a caller-supplied **runtime** config
+(the same sanctioned channel as `success_selectors` / `user_hint`, §7). The hook
+is **fail-open**: any error (missing binary, `jq`, or presets file; parse
+failure; no match) lets `WebFetch` proceed unchanged. It also stays fail-open
+until the engine can actually service a fetch: `check-url` reports the
+`ENGINE_READY` flag as `engine_ready`, and the hook only denies when it is true,
+so a preset host is never stranded while the M0 engine still returns
+`unimplemented`. `check-url` exits `10` on a match, `0` otherwise.
 
 ---
 

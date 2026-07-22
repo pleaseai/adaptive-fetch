@@ -1,0 +1,45 @@
+# URL presets are caller-editable runtime configuration, not engine source.
+# Presets are evaluated top-to-bottom; the first preset whose `match` glob matches
+# the request URL's HOSTNAME wins. Matching is host-scoped (the scheme, port, and
+# path are ignored), so a pattern cannot cross a path boundary and a bare origin
+# such as `https://x.com` (no trailing slash) still matches.
+#
+# `match` supports `*` as its only wildcard and is anchored to the whole host:
+#   reddit.com     matches only the apex host
+#   *.reddit.com   matches sub-domains (www.reddit.com, old.reddit.com) — NOT the apex
+# List both patterns when you want to cover an apex host and its sub-domains.
+#
+# `reason` explains the routing choice. `device` may be auto/desktop/mobile — any
+# other value makes the file fail to load (fail-open: WebFetch then proceeds).
+# `selectors` may list success selectors. `impersonate_first` and `referer_strategy`
+# are optional routing hints reserved for a later milestone: they are stored but not
+# yet emitted as CLI flags or surfaced to the agent.
+#
+# The named sites below are editable, caller-supplied runtime hints under
+# RFC 0001 §4.5/§7. They are NOT engine bias: the engine code remains
+# site-agnostic and contains no knowledge of these examples.
+
+version = 1
+
+# Editable example: route Reddit (apex + sub-domains) through the adaptive path.
+[[presets]]
+match = "reddit.com"
+reason = "Reddit gates non-RSS pages behind a WAF; adaptive-fetch routes via the Phase 0 RSS endpoint."
+device = "desktop"
+
+[[presets]]
+match = "*.reddit.com"
+reason = "Reddit gates non-RSS pages behind a WAF; adaptive-fetch routes via the Phase 0 RSS endpoint."
+device = "desktop"
+
+# Editable example: route matching pages through the adaptive fetch path.
+[[presets]]
+match = "twitter.com"
+reason = "X/Twitter blocks plain WebFetch; adaptive-fetch uses the syndication route."
+device = "desktop"
+
+# Editable example: route matching pages through the adaptive fetch path.
+[[presets]]
+match = "x.com"
+reason = "X/Twitter blocks plain WebFetch; adaptive-fetch uses the syndication route."
+device = "desktop"

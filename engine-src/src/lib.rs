@@ -17,6 +17,7 @@
 //! domain, selector, or brand. Site knowledge enters only via [`FetchOptions`].
 
 mod options;
+pub mod presets;
 mod result;
 
 // Engine stages (RFC 0001 §4). Stubs now; filled in across milestones M1–M5.
@@ -31,7 +32,17 @@ mod validators; // M1: 4-layer validation, Verdict classification
 mod waf_detector; // M2: ranked WAF-product detection
 
 pub use options::{DeviceClass, FetchOptions, UserHint};
+pub use presets::{PresetFile, UrlPreset};
 pub use result::{Attempt, FetchResult, Verdict};
+
+/// Whether the engine can service a real fetch yet.
+///
+/// `false` in the M0 scaffold — [`fetch`] returns `stop_reason = "unimplemented"`.
+/// The WebFetch PreToolUse hook reads this (via `check-url`'s `engine_ready` field)
+/// and stays **fail-open** while it is `false`, so a preset host is never denied
+/// while the redirect target cannot actually retrieve it. Flip to `true` when M1
+/// lands a working fetch route.
+pub const ENGINE_READY: bool = false;
 
 /// Fetch `url`, bypassing blocks site-agnostically.
 ///
