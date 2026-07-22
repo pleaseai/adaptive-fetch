@@ -1,0 +1,21 @@
+.github/workflows/coverage.yml
+  s_ce81ad51033e7e::t_24429a7e8d821f 55-58
+.github/workflows/audit.yml
+  s_ce81ad51033e7e::t_ebca7dd6598a56 54-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "997663e1be67dbd1d6ff91f8516d2f7fd083a353",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
