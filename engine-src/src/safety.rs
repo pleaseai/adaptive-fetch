@@ -7,14 +7,14 @@
 //! Two layers:
 //! - [`classify_url`] — sync, offline: scheme + IP-literal + well-known-name
 //!   checks. Fast and unit-testable with no network.
-//! - [`classify_url_resolved`] — async: runs [`classify_url`], then resolves a
-//!   hostname and rejects if ANY resolved address is blocked, closing the
-//!   name-only gap where a host (e.g. a redirect target) points at a private /
-//!   metadata IP. Pinning the resolved IP into the actual connection (fully
-//!   closing the DNS-rebinding TOCTOU window, since `wreq` re-resolves) is a
-//!   later hardening for the generic transport.
+//! - [`resolve_checked`] — async: runs [`classify_url`], then resolves a hostname,
+//!   rejects if ANY resolved address is blocked, and returns the vetted addresses
+//!   so the transport can **pin the connection** to exactly them. Pinning closes
+//!   the DNS-rebinding TOCTOU window: `wreq` connects to a checked address instead
+//!   of re-resolving (which could return a private/metadata IP between check and
+//!   connect), while the original hostname is preserved for TLS SNI and `Host`.
 
-use std::net::{IpAddr, Ipv6Addr};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use url::Url;
 
 /// Reject `url` if its scheme is not http(s) or its host resolves to a blocked
@@ -58,40 +58,44 @@ pub fn classify_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Async companion to [`classify_url`]: runs the sync checks, then — for a real
-/// hostname (not an IP literal) — resolves it and rejects if any resolved address
-/// is blocked. This closes the name-only gap where a hostname resolves to a
-/// private / loopback / metadata IP (e.g. a redirect target under attacker
-/// influence). A residual DNS-rebinding TOCTOU window remains because `wreq`
-/// re-resolves at connect time; pinning the checked IP is a later hardening.
-pub async fn classify_url_resolved(url: &str) -> Result<(), String> {
+/// Validate `url` and return `(host, addrs)` for pinning the connection:
+/// - runs [`classify_url`] (scheme + IP-literal + well-known-name),
+/// - for a hostname, resolves it, rejects if ANY resolved address is blocked, and
+///   returns `Some(addrs)` so the caller pins the connection to exactly those
+///   (defeating DNS rebinding — the connect-time address cannot differ),
+/// - for an IP literal, returns `None` (already vetted; nothing to resolve/pin).
+pub async fn resolve_checked(url: &str) -> Result<(String, Option<Vec<SocketAddr>>), String> {
     classify_url(url)?;
 
     let parsed = Url::parse(url).map_err(|error| format!("invalid url: {error}"))?;
     let host = parsed
         .host_str()
         .ok_or_else(|| "url has no host".to_string())?;
-    let host = host.strip_suffix('.').unwrap_or(host);
+    let host = host.strip_suffix('.').unwrap_or(host).to_string();
 
-    // IP literals were already fully vetted by classify_url — only resolve names.
+    // IP literals were already fully vetted by classify_url — nothing to resolve.
     let literal = host
         .strip_prefix('[')
         .and_then(|inner| inner.strip_suffix(']'))
-        .unwrap_or(host);
+        .unwrap_or(&host);
     if literal.parse::<IpAddr>().is_ok() {
-        return Ok(());
+        return Ok((host, None));
     }
 
     let port = parsed.port_or_known_default().unwrap_or(443);
-    let resolved = tokio::net::lookup_host((host, port))
+    let addrs: Vec<SocketAddr> = tokio::net::lookup_host((host.as_str(), port))
         .await
-        .map_err(|error| format!("dns resolution failed for {host}: {error}"))?;
-    for addr in resolved {
+        .map_err(|error| format!("dns resolution failed for {host}: {error}"))?
+        .collect();
+    if addrs.is_empty() {
+        return Err(format!("dns resolution returned no addresses for {host}"));
+    }
+    for addr in &addrs {
         if is_blocked_ip(addr.ip()) {
             return Err(format!("blocked address: {host} resolves to {}", addr.ip()));
         }
     }
-    Ok(())
+    Ok((host, Some(addrs)))
 }
 
 /// Whether `ip` is in a private / loopback / link-local / metadata / reserved
@@ -173,25 +177,22 @@ mod tests {
     }
 
     #[test]
-    fn resolved_delegates_sync_checks_and_skips_literals() {
-        // Offline: literals are vetted synchronously (no DNS lookup), and the
-        // well-known-name check still fires. The real A/AAAA-resolution branch is
-        // exercised by the live Phase 0 fetch (a public host resolves + passes).
+    fn resolve_checked_delegates_sync_checks_and_skips_literals() {
+        // Offline: literals are vetted synchronously and return no addrs to pin
+        // (nothing to resolve); blocked literals/names still error. The real
+        // A/AAAA-resolution branch is exercised by the live Phase 0 fetch.
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
+        let (_host, addrs) = rt
+            .block_on(resolve_checked("https://93.184.216.34/"))
+            .unwrap();
+        assert!(addrs.is_none()); // literal → nothing to pin
+        assert!(rt.block_on(resolve_checked("http://10.0.0.5/")).is_err());
         assert!(rt
-            .block_on(classify_url_resolved("https://93.184.216.34/"))
-            .is_ok());
-        assert!(rt
-            .block_on(classify_url_resolved("http://10.0.0.5/"))
+            .block_on(resolve_checked("http://[::ffff:10.0.0.1]/"))
             .is_err());
-        assert!(rt
-            .block_on(classify_url_resolved("http://[::ffff:10.0.0.1]/"))
-            .is_err());
-        assert!(rt
-            .block_on(classify_url_resolved("http://localhost/"))
-            .is_err());
+        assert!(rt.block_on(resolve_checked("http://localhost/")).is_err());
     }
 }

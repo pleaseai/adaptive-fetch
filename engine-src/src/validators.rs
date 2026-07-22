@@ -57,7 +57,12 @@ pub fn validate_feed(status: u16, body: &str) -> (Verdict, Vec<String>) {
 /// `<feedback>`, a stray `<feed>` in its body, or an embedded XML example is not
 /// mistaken for a feed.
 fn is_feed(lower_head: &str) -> bool {
-    matches!(root_element(lower_head), Some("rss" | "feed" | "rdf:rdf"))
+    root_element(lower_head).is_some_and(|root| {
+        // Compare the LOCAL name so a namespace-qualified root still matches:
+        // `atom:feed` → `feed`, and RSS 1.0's `<rdf:RDF>` → `rdf`.
+        let local = root.rsplit(':').next().unwrap_or(root);
+        matches!(local, "rss" | "feed" | "rdf")
+    })
 }
 
 /// The name of the first XML element in `lower_head`, skipping a leading BOM,
@@ -127,6 +132,22 @@ mod tests {
         let (v, _) = validate_feed(
             200,
             "\u{feff}<?xml version=\"1.0\"?>\n<!-- generated --><feed xmlns=\"…\">…</feed>",
+        );
+        assert_eq!(v, Verdict::WeakOk);
+    }
+
+    #[test]
+    fn accepts_namespace_qualified_roots() {
+        // A namespace-prefixed root must match on its local name.
+        let (v, _) = validate_feed(
+            200,
+            "<?xml version=\"1.0\"?><atom:feed xmlns:atom=\"http://www.w3.org/2005/Atom\"></atom:feed>",
+        );
+        assert_eq!(v, Verdict::WeakOk);
+        // RSS 1.0's `<rdf:RDF>` root.
+        let (v, _) = validate_feed(
+            200,
+            "<?xml version=\"1.0\"?><rdf:RDF xmlns=\"http://purl.org/rss/1.0/\"></rdf:RDF>",
         );
         assert_eq!(v, Verdict::WeakOk);
     }

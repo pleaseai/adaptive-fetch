@@ -74,22 +74,26 @@ pub fn get(url: &str, timeout: Duration) -> Result<Fetched, String> {
 }
 
 async fn get_async(url: &str, timeout: Duration) -> Result<Fetched, String> {
-    // No `.emulation()`: a plain client (see module doc) is what official Phase 0
-    // endpoints expect. The browser-impersonation grid lands with M2.
-    let client = wreq::Client::builder()
-        .redirect(Policy::none()) // follow manually so each hop is SSRF-checked
-        .timeout(timeout)
-        .build()
-        .map_err(|error| format!("client build: {error}"))?;
-
     let started = Instant::now();
     let mut current = url.to_string();
 
     for _hop in 0..=MAX_REDIRECTS {
-        // Resolve + SSRF-check every hop before connecting, so a redirect to a
-        // host that *resolves* to a private/metadata IP is blocked, not just an
-        // IP-literal one.
-        safety::classify_url_resolved(&current).await?;
+        // Resolve + SSRF-check every hop, then PIN the connection to the vetted
+        // addresses so wreq can't re-resolve to a rebinding target between the
+        // check and the connect. The hostname is preserved for TLS SNI and `Host`.
+        let (host, checked_addrs) = safety::resolve_checked(&current).await?;
+
+        // No `.emulation()`: a plain client (see module doc) is what official
+        // Phase 0 endpoints expect. The browser-impersonation grid lands with M2.
+        let mut builder = wreq::Client::builder()
+            .redirect(Policy::none()) // follow manually so each hop is SSRF-checked
+            .timeout(timeout);
+        if let Some(addrs) = &checked_addrs {
+            builder = builder.resolve_to_addrs(&host, addrs);
+        }
+        let client = builder
+            .build()
+            .map_err(|error| format!("client build: {error}"))?;
 
         let mut response = client
             .get(current.as_str())
