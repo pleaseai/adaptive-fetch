@@ -17,7 +17,11 @@ permissions:
   contents: read
 
 jobs:
+  # Same-repo events (push, schedule, same-repo PRs): full reporting via
+  # rustsec/audit-check, which needs write access to publish its check run and
+  # to open a tracking issue on newly-disclosed advisories.
   audit:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,3 +34,21 @@ jobs:
       - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Fork PRs receive a read-only GITHUB_TOKEN, so rustsec/audit-check cannot
+  # publish its check or issue. Run a plain `cargo audit` instead: it still
+  # fails the job on an advisory (gating the PR) without needing any write
+  # access, so external dependency updates get a real audit result.
+  audit-fork:
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: cargo-audit
+      - run: cargo audit
