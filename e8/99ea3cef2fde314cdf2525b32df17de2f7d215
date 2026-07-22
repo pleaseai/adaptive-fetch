@@ -1,0 +1,55 @@
+engine-src/src/phase0.rs
+  s_ce81ad51033e7e::t_1aae5ce1d5e8e1 7-147
+engine-src/Cargo.toml
+  s_ce81ad51033e7e::t_aa7ea8b7551392 24,31
+  s_ce81ad51033e7e::t_88c709ec6ea8a7 25-30,32
+engine-src/src/safety.rs
+  s_ce81ad51033e7e::t_99c9028ba4da08 91
+  s_ce81ad51033e7e::t_1787bfc7ba45d0 3-23,27-90,92-117
+  s_ce81ad51033e7e::t_592eb745ea0072 24-26
+engine-src/src/transport.rs
+  s_ce81ad51033e7e::t_be916865ca47f1 1,3-9,20,24-30,32,34-36,41,48,52-54,64-65,80-81,90
+  s_ce81ad51033e7e::t_f10be5e87aaf62 10-15
+  s_ce81ad51033e7e::t_c564b27039db53 16-19,21-23,33,37-40,42-47,49-51,55-63,66-79,82-89,91-117
+  s_ce81ad51033e7e::t_2a64b7b5b98881 31
+skills/adaptive-fetch/SKILL.md
+  s_ce81ad51033e7e::t_338289e8a084be 53-57
+  s_ce81ad51033e7e::t_ef500847cc06ca 5-8,11,13-17
+  s_ce81ad51033e7e::t_13bea8cd5c50f5 29-32
+hooks/webfetch-guard.sh
+  s_ce81ad51033e7e::t_e2b3074cb74355 46-49
+engine-src/src/lib.rs
+  s_ce81ad51033e7e::t_45b09a85ffd8e8 43-45
+  s_ce81ad51033e7e::t_7fbf0dd0622ab6 35
+  s_ce81ad51033e7e::t_d66431f1e41a42 41,46-167,175,181
+  s_ce81ad51033e7e::t_b973205969c539 42
+docs/rfcs/0001-adaptive-fetch.md
+  s_ce81ad51033e7e::t_dc0d8d29b8c80b 160-164
+  s_ce81ad51033e7e::t_1311ee46d85743 219-229
+PLATFORMS.md
+  s_ce81ad51033e7e::t_cbffb60e1442dc 50
+  s_ce81ad51033e7e::t_4ac5b10fee1cec 3-6
+engine-src/src/main.rs
+  s_ce81ad51033e7e::t_32b7cb894670a7 193-196
+engine-src/src/validators.rs
+  s_ce81ad51033e7e::t_592eb745ea0072 37-40,56
+  s_ce81ad51033e7e::t_840175918bdc72 1,3-36,41-55,57-100
+Cargo.lock
+  s_ce81ad51033e7e::t_efea9d396eaf53 12,14-45,84,95-246,289-297,305-306,308-312,315-316,318,321-322,324-327,330-331,333,335-337,341-342,344,347-348,350-353,356-357,359,362-363,365,368-369,371,373-374,378-379,381-397,400-401,405-406,408-414,416,420-421,423-429,431-432,436-437,439,441,445-446,448-466,468-471,475-476,478,480-482,486-487,489,492-493,495-507,509-510,514-515,517,519-520,524-525,527,529-533,537-538,540,542-547,549-551,555-556,558,561-562,564-578,581-582,584-592,595-596,598-605,608-609,611,613-618,622-1479,1487-1608,1614-1641
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "e899ea3cef2fde314cdf2525b32df17de2f7d215",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
