@@ -37,7 +37,7 @@ Coupang, LinkedIn, Medium, Substack, most forums, and any site exposing `/rss` o
 | SSRF-safe transport | `safety.rs` block-list (private / loopback / link-local / metadata) | 🚧 M1 |
 | Browser TLS-fingerprint impersonation | **`rquest`, in-process** (no `curl_cffi`, no Python) | 🚧 M2 |
 | WAF detection → ranked priors | `waf_detector.rs` + `waf_profiles.yaml` | 🚧 M2 |
-| Diversity grid + exhaustive failure gate (R6) | `scheduler.rs` (session pool, warmup, cookie bridge, jitter) | 🚧 M2 |
+| Diversity grid + exhaustive failure gate (R6) | `scheduler.rs` (session pool, warmup, jitter) | 🚧 M2 |
 | Generic URL rewrites | `url_transforms.rs` | 🚧 M2 |
 
 ## Platform-specific APIs — 🚧 M3 (Phase 0 router)
@@ -84,7 +84,7 @@ official no-auth endpoint *before* the generic grid.
 
 | Capability | Planned mechanism | Milestone |
 |------------|-------------------|-----------|
-| Playwright fallback (capability-matched) | `executor.rs` + Node templates + `must_invoke_playwright_mcp` flag | 🚧 M4 |
+| Playwright fallback (capability-matched) | `executor.rs` + Node templates + `must_invoke_playwright_mcp` flag + browser→curl cookie bridge | 🚧 M4 |
 | Per-host winning-route store | `learning.rs` (promote / strike / evict) | 🚧 M5 |
 
 ## Reference files (planned)
