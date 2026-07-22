@@ -1,0 +1,36 @@
+engine-src/src/safety.rs
+  s_ce81ad51033e7e::t_26a2fe5314549b 154-163
+  s_ce81ad51033e7e::t_37af81796f58b9 153,174-183,196
+  s_ce81ad51033e7e::t_92dd6e68cfc71f 7-15
+  s_ce81ad51033e7e::t_c7fb656ef1428e 61-70,74-95
+  s_ce81ad51033e7e::t_b66657d014f08d 96
+  s_ce81ad51033e7e::t_c3f158ee69ae33 71-73,184-195
+  s_ce81ad51033e7e::t_9e798c53a018c1 111-115
+engine-src/src/transport.rs
+  s_ce81ad51033e7e::t_49039afb3c7f5d 41-44
+  s_ce81ad51033e7e::t_36cee08d433232 89-92,94,119-136
+  s_ce81ad51033e7e::t_7192759534d1ee 60-68
+README.md
+  s_ce81ad51033e7e::t_527c7297da6e81 40-48
+engine-src/src/validators.rs
+  s_ce81ad51033e7e::t_37040f1bb0b325 113-133
+  s_ce81ad51033e7e::t_b816425d4ed5ef 55-58,60-85
+engine-src/Cargo.toml
+  s_ce81ad51033e7e::t_72d8e3b6a97916 26-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4365b322f78def2c4eee378acc3c4617c16c37e4",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
