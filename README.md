@@ -20,6 +20,12 @@ fingerprint impersonation — runs natively, in-process, as a single static bina
 [`docs/rfcs/0001-adaptive-fetch.md`](docs/rfcs/0001-adaptive-fetch.md) — architecture,
 invariants, and the milestone plan.
 
+## Platforms
+
+[`PLATFORMS.md`](PLATFORMS.md) — the planned coverage map: which platforms and
+routes each milestone (M1–M6) unlocks. Most sites need no explicit entry; only the
+Phase 0 official-API endpoints (Reddit, X, YouTube, …) are indexed.
+
 ## Repository layout
 
 ```
