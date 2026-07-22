@@ -2,17 +2,19 @@
 name: adaptive-fetch
 description: >
   Auto-bypass for blocked websites — tries every site-agnostic strategy until one
-  works. Use when WebFetch returns 402/403/blocked or hits a WAF/CAPTCHA. UNDER
-  CONSTRUCTION (M0 scaffold): the Rust engine is not wired up yet, so do not rely
-  on this skill for real fetches. See docs/rfcs/0001-adaptive-fetch.md.
+  works. Use when WebFetch returns 402/403/blocked or hits a WAF/CAPTCHA. EARLY
+  ACCESS: the Phase 0 router fetches Reddit (`.rss`) end-to-end today; the generic
+  engine (probe → grid → fallback) is still landing across M1–M4, so most hosts
+  still return an honest "not implemented" result. See docs/rfcs/0001-adaptive-fetch.md.
 ---
 
-# adaptive-fetch (under construction)
+# adaptive-fetch (early access)
 
-> ⚠️ **M0 scaffold.** The engine (`engine-src/`) currently returns an honest
-> "not implemented" result. The harness rules (R1–R7), Phase 0 index, and usage
-> contract below are being ported from the design and will activate as the
-> milestones land.
+> ⚠️ **Partial engine.** The Phase 0 router (`engine-src/`) fetches Reddit
+> (`.rss`) end-to-end today. Every other host still returns an honest "not
+> implemented" result — the generic probe → grid → fallback stages are being
+> ported from the design across M1–M4. The harness rules (R1–R7) and usage
+> contract below activate as each milestone lands.
 
 The full design — architecture, invariants, and the milestone plan — lives in
 [`docs/rfcs/0001-adaptive-fetch.md`](../../docs/rfcs/0001-adaptive-fetch.md).
@@ -24,8 +26,10 @@ adaptive-fetch "<URL>" [--selector "<CSS>"]... [--device auto|desktop|mobile] [-
 # exit 0 = validated success, exit 1 = failure (with untried_routes in --json)
 ```
 
-Until M1+ ships, treat a non-zero exit and `stop_reason="unimplemented"` as
-"engine not ready" rather than "site is unreachable".
+For a host with no Phase 0 route, a non-zero exit and `stop_reason="unimplemented"`
+means "engine not ready for this host yet" — not "site is unreachable". A Phase 0
+host (Reddit) returns real content on success, or an honest non-success verdict
+(e.g. `blocked`, `ratelimited`) with grid-fallback routes in `untried_routes`.
 
 ## PreToolUse WebFetch hook + URL presets
 
@@ -46,9 +50,8 @@ The hook needs the compiled engine binary. It looks first for
 `target/release/adaptive-fetch` into `skills/adaptive-fetch/engine/bin/` (or
 install it on `PATH`); until then the hook simply finds no binary and fails open.
 
-In the M0 scaffold the hook and preset-matching layer are wired and tested, but
-the deny is intentionally held back: `check-url` reports `engine_ready = false`
-(the engine's fetch is still a stub), and the hook only denies once that flips to
-`true` in a later milestone. Until then a preset match is a no-op and `WebFetch`
-runs unchanged — the routing never strands a request on an engine that cannot yet
-retrieve it.
+`check-url` reports `engine_ready` **per URL**: it is `true` only when the engine
+has a working route for that exact host (Phase 0 recognizes it — Reddit today),
+and `false` otherwise. The hook denies + redirects only when `engine_ready` is
+true; every other preset match stays fail-open and `WebFetch` runs unchanged. The
+routing never strands a request on an engine that cannot yet retrieve it.

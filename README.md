@@ -37,6 +37,15 @@ docs/rfcs/             design RFCs
 
 ## Development
 
+The engine links `wreq` → BoringSSL (`boring-sys2`), which **compiles native code
+at build time**. You need a C/C++ toolchain plus **CMake** and **libclang**
+(bindgen) on `PATH`; without them the build fails before compiling the crate.
+
+```bash
+# macOS:        xcode-select --install && brew install cmake llvm
+# Debian/Ubuntu: apt-get install -y build-essential cmake clang libclang-dev
+```
+
 ```bash
 mise install      # rust + bun toolchain (see mise.toml)
 mise run check    # fmt-check + clippy + test (mirrors CI)

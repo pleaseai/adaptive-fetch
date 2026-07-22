@@ -190,7 +190,10 @@ fn run_check_url(url: &str, presets: Option<PathBuf>, json: bool) -> ExitCode {
     if json {
         let output = serde_json::json!({
             "matched": true,
-            "engine_ready": adaptive_fetch::ENGINE_READY,
+            // Route-aware: true only when the engine has a working route for THIS
+            // url (Phase 0 recognizes the host). The WebFetch hook denies+redirects
+            // only these; every other preset host stays fail-open (WebFetch runs).
+            "engine_ready": adaptive_fetch::can_route(url),
             "reason": preset.reason,
             "device": preset.device,
             "selectors": preset.selectors,

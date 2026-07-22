@@ -157,10 +157,11 @@ domains live only in `url_presets.toml`, a caller-supplied **runtime** config
 (the same sanctioned channel as `success_selectors` / `user_hint`, §7). The hook
 is **fail-open**: any error (missing binary, `jq`, or presets file; parse
 failure; no match) lets `WebFetch` proceed unchanged. It also stays fail-open
-until the engine can actually service a fetch: `check-url` reports the
-`ENGINE_READY` flag as `engine_ready`, and the hook only denies when it is true,
-so a preset host is never stranded while the M0 engine still returns
-`unimplemented`. `check-url` exits `10` on a match, `0` otherwise.
+unless the engine can actually service **that** url: `check-url` reports a
+**route-aware** `engine_ready` (`phase0::can_route(url)` — true only when the
+engine has a working route for the host, Reddit today), and the hook only denies
+when it is true, so a preset host with no working route (or on a milestone before
+its route lands) is never stranded. `check-url` exits `10` on a match, `0` otherwise.
 
 ---
 
@@ -214,6 +215,17 @@ endpoint *before* the generic grid:
 - **YouTube** → `yt-dlp --dump-json` subprocess.
 
 Extensible to HN/Bluesky/Mastodon/arXiv/etc. as documented in `references/`.
+
+**Phase 0 fetches with a plain client, not browser impersonation** (found live
+during the M3 Reddit slice). Official endpoints are built for *simple* consumers
+(RSS readers, API clients); a full browser TLS/JA3 fingerprint plus `sec-ch-ua`
+client hints on a `.rss`/API URL is itself anomalous — real browser users load
+HTML, not feeds — and trips anti-bot. Observed: Reddit's `/r/<sub>/.rss` returns a
+real Atom feed (HTTP 200) to a plain client but a 403 challenge page to a
+Chrome-emulated one from the same IP. So the impersonation grid (§4.5–4.7) is a
+Phase 1–3 tool for scraping HTML that *expects* a browser; Phase 0 stays plain.
+This is orthogonal to R6: a plain Phase 0 fetch is still validated, and a
+challenged/blocked/rate-limited feed falls back to the grid on the original URL.
 
 ### 4.4 WAF detection → ranked priors
 

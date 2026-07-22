@@ -21,8 +21,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 
-# Engine dependencies land as their milestones are implemented (RFC 0001 §5):
-#   M1: rquest/wreq (TLS impersonation), tokio, scraper, ipnet
-#   M2: WAF profiles, url
-# Kept out of M0 so the scaffold compiles fast and crate choices are pinned
+# M3 Phase 0 (Reddit .rss router) — plain feed/API GET, RFC 0001 §4.3, §4.7, §5.
+tokio = { version = "1", features = ["rt", "net", "time"] }
+# wreq links BoringSSL (boring-sys2) → needs CMake + libclang at build time.
+# See README "Development" for the toolchain prerequisites.
+wreq = "5"
+url = "2"
+
+# Remaining engine dependencies land as their milestones are implemented:
+#   M1: scraper (success_selectors), ipnet (SSRF CIDR)
+#   M2: wreq-util (browser-emulation diversity grid), WAF profiles
+# Kept out until used so the scaffold compiles fast and crate choices are pinned
 # against real usage rather than guessed up front.

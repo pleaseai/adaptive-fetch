@@ -43,9 +43,10 @@ if [ "$MATCHED" != "true" ]; then
   exit 0
 fi
 
-# Fail open until the engine can actually service the fetch. In the M0 scaffold
-# adaptive-fetch returns "unimplemented", so denying WebFetch here would strand the
-# request with no working alternative. `engine_ready` flips to true when M1 lands.
+# Fail open unless the engine can actually service THIS url. `engine_ready` is
+# route-aware: check-url reports true only when the engine has a working route for
+# the host (Phase 0 recognizes it — Reddit today), false otherwise. Denying a host
+# the engine can't yet fetch would strand the request with no working alternative.
 READY=$(printf '%s' "$OUT" | jq -r '.engine_ready // false' 2>/dev/null) || exit 0
 if [ "$READY" != "true" ]; then
   exit 0

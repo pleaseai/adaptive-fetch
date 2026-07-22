@@ -1,9 +1,9 @@
 # Supported platforms (planned)
 
-> 🚧 **M0 scaffold.** adaptive-fetch does not fetch anything yet — the engine
-> returns an honest "not implemented" result. This page is the **planned**
-> coverage map: which platforms each milestone (M1–M6) unlocks, ported from
-> [`fivetaku/insane-search`](https://github.com/fivetaku/insane-search)'s
+> 🚧 **Early access.** The Phase 0 router fetches **Reddit** (`.rss`) end-to-end
+> today; every other host still returns an honest "not implemented" result. This
+> page is the coverage map: which platforms each milestone (M1–M6) unlocks, ported
+> from [`fivetaku/insane-search`](https://github.com/fivetaku/insane-search)'s
 > `PLATFORMS.md`. Each row's status flips from 🚧 planned to ✅ live as the owning
 > milestone lands. Track progress in the
 > [design RFC §8](docs/rfcs/0001-adaptive-fetch.md#8-implementation-milestones-proposed-after-this-design-is-approved).
@@ -47,7 +47,7 @@ official no-auth endpoint *before* the generic grid.
 
 | Platform | Planned route | Reference | Status |
 |----------|---------------|-----------|--------|
-| Reddit | `.rss` feed (the unauth `.json` now 403s) | `json-api.md` | 🚧 M3 |
+| Reddit | `.rss` feed via a **plain** client (browser impersonation trips its anti-bot; the unauth `.json` is WAF-gated) | `json-api.md` | ✅ |
 | X/Twitter | single tweet → `cdn.syndication.twimg.com/tweet-result` + oEmbed · timeline → `syndication.twitter.com` · keyword → WebSearch → tweet-result | `twitter.md` | 🚧 M3 |
 | Bluesky | AT Protocol (`public.api.bsky.app/xrpc/…`) | `public-api.md` | 🚧 M3+ |
 | Mastodon | Per-instance public API | `public-api.md` | 🚧 M3+ |
