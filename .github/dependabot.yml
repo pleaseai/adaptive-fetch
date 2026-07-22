@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    open-pull-requests-limit: 10
+    # Wait before proposing freshly-published versions, so a compromised
+    # release that is quickly yanked is less likely to land in a PR.
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    cooldown:
+      default-days: 7
+    groups:
+      all:
+        patterns:
+          - "*"

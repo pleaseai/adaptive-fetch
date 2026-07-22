@@ -1,5 +1,6 @@
 # Rust build output
 /target
+/lcov.info
 **/*.rs.bk
 
 # Cargo.lock IS committed (this is a binary/application crate) — do not ignore it.
