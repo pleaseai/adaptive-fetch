@@ -43,10 +43,16 @@ if [ "$MATCHED" != "true" ]; then
   exit 0
 fi
 
+# Fail open until the engine can actually service the fetch. In the M0 scaffold
+# adaptive-fetch returns "unimplemented", so denying WebFetch here would strand the
+# request with no working alternative. `engine_ready` flips to true when M1 lands.
+READY=$(printf '%s' "$OUT" | jq -r '.engine_ready // false' 2>/dev/null) || exit 0
+if [ "$READY" != "true" ]; then
+  exit 0
+fi
+
 REASON=$(printf '%s' "$OUT" | jq -r '.reason // empty' 2>/dev/null) || exit 0
 CMD=$(printf '%s' "$OUT" | jq -r '.suggested_command // empty' 2>/dev/null) || exit 0
-IMP=$(printf '%s' "$OUT" | jq -r '.impersonate_first // empty' 2>/dev/null) || exit 0
-REF=$(printf '%s' "$OUT" | jq -r '.referer_strategy // empty' 2>/dev/null) || exit 0
 if [ -z "$CMD" ]; then
   exit 0
 fi
@@ -57,12 +63,7 @@ if [ -n "$REASON" ]; then
 fi
 MSG="${MSG} Run this instead:
 
-  ${CMD}"
-if [ -n "$IMP" ] || [ -n "$REF" ]; then
-  MSG="${MSG}
-Hints: impersonate_first=${IMP} referer_strategy=${REF}"
-fi
-MSG="${MSG}
+  ${CMD}
 Use the adaptive-fetch skill; do not retry WebFetch for this host."
 
 jq -n --arg r "$MSG" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}' || exit 0

@@ -1,10 +1,17 @@
 //! Generic URL preset loading and matching.
 //!
 //! Presets are caller-supplied runtime hints. This module only parses their
-//! configuration, matches URL globs, and formats suggested CLI commands.
+//! configuration, matches a URL's **hostname** against glob patterns, and formats
+//! suggested CLI commands. Matching is host-scoped (not full-URL) so a pattern
+//! cannot cross path boundaries and bare origins still match.
 
 use serde::Deserialize;
 use std::path::Path;
+
+/// Device values the `adaptive-fetch` CLI accepts. A preset outside this set would
+/// produce a suggested command that fails clap validation, so it is rejected at
+/// load time instead of creating a dead end (deny + unrunnable command).
+const VALID_DEVICES: [&str; 3] = ["auto", "desktop", "mobile"];
 
 /// Versioned collection of URL presets, evaluated from top to bottom.
 #[derive(Debug, Clone, Deserialize)]
@@ -16,10 +23,10 @@ pub struct PresetFile {
     pub presets: Vec<UrlPreset>,
 }
 
-/// Runtime hints associated with a URL glob.
+/// Runtime hints associated with a host glob.
 #[derive(Debug, Clone, Deserialize)]
 pub struct UrlPreset {
-    /// URL glob, where `*` is the only wildcard.
+    /// Host glob, where `*` is the only wildcard, matched against the URL hostname.
     pub r#match: String,
     /// Explanation shown when the preset matches.
     #[serde(default)]
@@ -30,28 +37,50 @@ pub struct UrlPreset {
     /// Success selectors forwarded to the CLI.
     #[serde(default)]
     pub selectors: Vec<String>,
-    /// Preferred impersonation target for engines that support this hint.
+    /// Preferred impersonation target — reserved for a later milestone (stored, not
+    /// yet emitted as a CLI flag).
     #[serde(default)]
     pub impersonate_first: Option<String>,
-    /// Preferred referer strategy for engines that support this hint.
+    /// Preferred referer strategy — reserved for a later milestone (stored, not yet
+    /// emitted as a CLI flag).
     #[serde(default)]
     pub referer_strategy: Option<String>,
 }
 
-/// Load and parse a preset file, returning errors as fail-soft messages.
+/// Load, parse, and validate a preset file, returning errors as fail-soft messages.
 pub fn load(path: &Path) -> Result<PresetFile, String> {
     let contents = std::fs::read_to_string(path)
         .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    toml::from_str(&contents)
-        .map_err(|error| format!("failed to parse {}: {error}", path.display()))
+    let file: PresetFile = toml::from_str(&contents)
+        .map_err(|error| format!("failed to parse {}: {error}", path.display()))?;
+    file.validate()
+        .map_err(|error| format!("invalid preset in {}: {error}", path.display()))?;
+    Ok(file)
 }
 
 impl PresetFile {
-    /// Return the first preset whose glob matches `url`.
+    /// Return the first preset whose glob matches the hostname of `url`.
     pub fn match_url(&self, url: &str) -> Option<&UrlPreset> {
+        let host = extract_host(url)?;
         self.presets
             .iter()
-            .find(|preset| glob_match(&preset.r#match, url))
+            .find(|preset| glob_match(&preset.r#match, host))
+    }
+
+    /// Reject presets whose `device` the CLI would not accept.
+    pub fn validate(&self) -> Result<(), String> {
+        for preset in &self.presets {
+            if let Some(device) = &preset.device {
+                if !VALID_DEVICES.contains(&device.as_str()) {
+                    return Err(format!(
+                        "device \"{device}\" for match \"{}\" is not one of {}",
+                        preset.r#match,
+                        VALID_DEVICES.join(", ")
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -74,13 +103,46 @@ impl UrlPreset {
     }
 }
 
+/// Extract the lowercase-comparable hostname from `url` (scheme, userinfo, port,
+/// and path stripped). Returns `None` when no host is present.
+fn extract_host(url: &str) -> Option<&str> {
+    let after_scheme = match url.find("://") {
+        Some(index) => &url[index + 3..],
+        None => url,
+    };
+    let authority_end = after_scheme
+        .find(['/', '?', '#'])
+        .unwrap_or(after_scheme.len());
+    let authority = &after_scheme[..authority_end];
+    // Drop any userinfo (`user:pass@`).
+    let host_port = match authority.rfind('@') {
+        Some(index) => &authority[index + 1..],
+        None => authority,
+    };
+    // Drop the port. Bracketed IPv6 literals keep their inner colons.
+    let host = if let Some(inner) = host_port.strip_prefix('[') {
+        inner.split(']').next().unwrap_or(host_port)
+    } else {
+        match host_port.rfind(':') {
+            Some(index) => &host_port[..index],
+            None => host_port,
+        }
+    };
+
+    (!host.is_empty()).then_some(host)
+}
+
 fn shell_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('\\', "\\\\").replace('\"', "\\\""))
+    // POSIX single-quote escaping. Single quotes suppress *all* shell evaluation —
+    // `$(...)`, backticks, `$VAR` — so a hostile URL or selector cannot inject a
+    // command into the suggested string. A literal single quote closes the quote,
+    // emits an escaped `'`, and reopens: `'\''`.
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 fn glob_match(pattern: &str, text: &str) -> bool {
-    // URLs are effectively case-insensitive for preset routing, so normalize both
-    // sides before matching. Character vectors keep non-ASCII literals intact.
+    // Hostnames are case-insensitive, so normalize both sides before matching.
+    // Character vectors keep non-ASCII literals intact.
     let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
     let text: Vec<char> = text.to_lowercase().chars().collect();
     let (mut pattern_index, mut text_index) = (0, 0);
@@ -138,18 +200,65 @@ mod tests {
 
     #[test]
     fn glob_matching_is_case_insensitive() {
-        assert!(glob_match("SCHEME://HOST/*", "scheme://host/Path"));
+        assert!(glob_match("HOST.EXAMPLE", "host.example"));
+    }
+
+    #[test]
+    fn extract_host_strips_scheme_userinfo_port_and_path() {
+        assert_eq!(
+            extract_host("https://www.example.com/path?q=1"),
+            Some("www.example.com")
+        );
+        assert_eq!(
+            extract_host("https://user:pass@example.com:8443/x"),
+            Some("example.com")
+        );
+        assert_eq!(
+            extract_host("https://[2001:db8::1]:443/x"),
+            Some("2001:db8::1")
+        );
+        assert_eq!(extract_host("example.com"), Some("example.com"));
+        assert_eq!(extract_host("https:///path"), None);
+    }
+
+    #[test]
+    fn match_url_matches_host_not_path() {
+        let file = PresetFile {
+            version: 1,
+            presets: vec![preset("*.example.com", "sub")],
+        };
+
+        // A real sub-domain matches.
+        assert!(file.match_url("https://www.example.com/path").is_some());
+        // The pattern embedded in an unrelated host's PATH must not match — host
+        // matching stops the glob from crossing the `/` boundary.
+        assert!(file
+            .match_url("https://evil.com/path/.example.com/x")
+            .is_none());
+        // The apex is deliberately not covered by a sub-domain pattern.
+        assert!(file.match_url("https://example.com/").is_none());
+    }
+
+    #[test]
+    fn match_url_matches_bare_origin_without_trailing_slash() {
+        let file = PresetFile {
+            version: 1,
+            presets: vec![preset("example.com", "apex")],
+        };
+
+        assert!(file.match_url("https://example.com").is_some());
+        assert!(file.match_url("https://example.com/some/page").is_some());
     }
 
     #[test]
     fn match_url_returns_the_first_matching_preset() {
         let file = PresetFile {
             version: 1,
-            presets: vec![preset("*target*", "first"), preset("*", "second")],
+            presets: vec![preset("target.example", "first"), preset("*", "second")],
         };
 
         assert_eq!(
-            file.match_url("scheme://target/path")
+            file.match_url("scheme://target.example/path")
                 .and_then(|matched| matched.reason.as_deref()),
             Some("first")
         );
@@ -159,10 +268,41 @@ mod tests {
     fn match_url_returns_none_without_a_match() {
         let file = PresetFile {
             version: 1,
-            presets: vec![preset("prefix-*", "only")],
+            presets: vec![preset("prefix.example", "only")],
         };
 
-        assert!(file.match_url("other-value").is_none());
+        assert!(file.match_url("https://other.example/").is_none());
+    }
+
+    #[test]
+    fn validate_rejects_unknown_device() {
+        let mut bad = preset("x.example", "reason");
+        bad.device = Some("tablet".to_string());
+        let file = PresetFile {
+            version: 1,
+            presets: vec![bad],
+        };
+
+        let error = file
+            .validate()
+            .expect_err("unknown device should be rejected");
+        assert!(
+            error.contains("tablet"),
+            "error should name the bad value: {error}"
+        );
+    }
+
+    #[test]
+    fn validate_accepts_known_devices() {
+        for device in ["auto", "desktop", "mobile"] {
+            let mut ok = preset("x.example", "reason");
+            ok.device = Some(device.to_string());
+            let file = PresetFile {
+                version: 1,
+                presets: vec![ok],
+            };
+            assert!(file.validate().is_ok(), "{device} should be accepted");
+        }
     }
 
     #[test]
@@ -172,7 +312,7 @@ mod tests {
 
         assert_eq!(
             value.suggested_command("scheme://host/path"),
-            "adaptive-fetch \"scheme://host/path\""
+            "adaptive-fetch 'scheme://host/path'"
         );
     }
 
@@ -184,18 +324,20 @@ mod tests {
 
         assert_eq!(
             value.suggested_command("scheme://host/path"),
-            "adaptive-fetch \"scheme://host/path\" --device desktop --selector \"main\" --selector \"article.body\""
+            "adaptive-fetch 'scheme://host/path' --device desktop --selector 'main' --selector 'article.body'"
         );
     }
 
     #[test]
-    fn suggested_command_escapes_quotes_and_backslashes() {
+    fn suggested_command_neutralizes_shell_metacharacters() {
         let mut value = preset("*", "reason");
-        value.selectors = vec![r#"[data-label="quoted"]\path"#.to_string()];
+        value.selectors = vec!["a'b".to_string()];
 
+        // The `$(...)` in the URL and the single quote in the selector are both
+        // wrapped in single quotes, so nothing is evaluated when the command runs.
         assert_eq!(
-            value.suggested_command(r#"scheme://host/"quoted"\path"#),
-            r#"adaptive-fetch "scheme://host/\"quoted\"\\path" --selector "[data-label=\"quoted\"]\\path""#
+            value.suggested_command("https://host/$(whoami)`id`"),
+            r#"adaptive-fetch 'https://host/$(whoami)`id`' --selector 'a'\''b'"#
         );
     }
 
@@ -205,7 +347,7 @@ mod tests {
 version = 1
 
 [[presets]]
-match = "*://*/*"
+match = "*.example.com"
 reason = "Runtime hint"
 device = "mobile"
 selectors = ["main", "article"]

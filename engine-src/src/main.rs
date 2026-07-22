@@ -190,6 +190,7 @@ fn run_check_url(url: &str, presets: Option<PathBuf>, json: bool) -> ExitCode {
     if json {
         let output = serde_json::json!({
             "matched": true,
+            "engine_ready": adaptive_fetch::ENGINE_READY,
             "reason": preset.reason,
             "device": preset.device,
             "selectors": preset.selectors,

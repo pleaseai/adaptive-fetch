@@ -35,6 +35,15 @@ pub use options::{DeviceClass, FetchOptions, UserHint};
 pub use presets::{PresetFile, UrlPreset};
 pub use result::{Attempt, FetchResult, Verdict};
 
+/// Whether the engine can service a real fetch yet.
+///
+/// `false` in the M0 scaffold — [`fetch`] returns `stop_reason = "unimplemented"`.
+/// The WebFetch PreToolUse hook reads this (via `check-url`'s `engine_ready` field)
+/// and stays **fail-open** while it is `false`, so a preset host is never denied
+/// while the redirect target cannot actually retrieve it. Flip to `true` when M1
+/// lands a working fetch route.
+pub const ENGINE_READY: bool = false;
+
 /// Fetch `url`, bypassing blocks site-agnostically.
 ///
 /// **M0 scaffold:** the engine stages are not implemented yet, so this returns
