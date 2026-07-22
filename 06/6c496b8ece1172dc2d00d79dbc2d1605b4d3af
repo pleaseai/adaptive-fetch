@@ -1,0 +1,35 @@
+skills/adaptive-fetch/SKILL.md
+  s_ce81ad51033e7e::t_d75263bd887958 34-36,43-54
+engine-src/src/presets.rs
+  s_ce81ad51033e7e::t_9b17471cacd38e 208-219,286-292
+  s_ce81ad51033e7e::t_8514f41489c0fa 4-6,11-15,26,29,40-41,44-45,50,54-58,62,64,67-83,106-134,136-140,144-145,203-207,220-250,257,261,271-283,293-305,315,327,332,334,336-337,339-340,350
+engine-src/src/lib.rs
+  s_ce81ad51033e7e::t_fa4c6eb7453c22 38-46
+engine-src/src/main.rs
+  s_ce81ad51033e7e::t_cb3255ae41a7fc 193
+hooks/webfetch-guard.sh
+  s_ce81ad51033e7e::t_cb339c4b95f830 46-53,66
+docs/rfcs/0001-adaptive-fetch.md
+  s_ce81ad51033e7e::t_4f36081aa5b79f 113
+  s_ce81ad51033e7e::t_0b62aa5daab914 90-92
+  s_ce81ad51033e7e::t_4d1a734f7e5cbd 96
+  s_ce81ad51033e7e::t_c05e01131c4b1e 148-153,159-163
+skills/adaptive-fetch/url_presets.toml
+  s_ce81ad51033e7e::t_a448825e21b6d5 2-16,24-29,31,37,43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "066c496b8ece1172dc2d00d79dbc2d1605b4d3af",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
