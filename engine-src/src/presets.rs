@@ -128,6 +128,9 @@ fn extract_host(url: &str) -> Option<&str> {
             None => host_port,
         }
     };
+    // A trailing DNS root dot (`reddit.com.`) resolves to the same host, so strip it
+    // before matching.
+    let host = host.strip_suffix('.').unwrap_or(host);
 
     (!host.is_empty()).then_some(host)
 }
@@ -219,6 +222,18 @@ mod tests {
         );
         assert_eq!(extract_host("example.com"), Some("example.com"));
         assert_eq!(extract_host("https:///path"), None);
+    }
+
+    #[test]
+    fn extract_host_drops_trailing_dns_root_dot() {
+        assert_eq!(
+            extract_host("https://reddit.com./r/rust"),
+            Some("reddit.com")
+        );
+        assert_eq!(
+            extract_host("https://www.reddit.com."),
+            Some("www.reddit.com")
+        );
     }
 
     #[test]
