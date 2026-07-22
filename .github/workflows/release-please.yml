@@ -4,9 +4,11 @@ on:
   push:
     branches: [main]
 
+# Release Please authenticates with the dedicated app token (see the
+# create-github-app-token step below), so the ambient GITHUB_TOKEN needs no
+# write access — keep it read-only.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   release-please:
@@ -20,6 +22,9 @@ jobs:
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+          # Release Please creates its bootstrap labels (autorelease: *) on the
+          # first run, which requires the Issues permission on the app token.
+          permission-issues: write
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
