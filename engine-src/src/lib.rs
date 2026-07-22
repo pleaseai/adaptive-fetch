@@ -32,26 +32,139 @@ mod validators; // M1: 4-layer validation, Verdict classification
 mod waf_detector; // M2: ranked WAF-product detection
 
 pub use options::{DeviceClass, FetchOptions, UserHint};
+pub use phase0::can_route;
 pub use presets::{PresetFile, UrlPreset};
 pub use result::{Attempt, FetchResult, Verdict};
 
-/// Whether the engine can service a real fetch yet.
-///
-/// `false` in the M0 scaffold — [`fetch`] returns `stop_reason = "unimplemented"`.
-/// The WebFetch PreToolUse hook reads this (via `check-url`'s `engine_ready` field)
-/// and stays **fail-open** while it is `false`, so a preset host is never denied
-/// while the redirect target cannot actually retrieve it. Flip to `true` when M1
-/// lands a working fetch route.
-pub const ENGINE_READY: bool = false;
-
 /// Fetch `url`, bypassing blocks site-agnostically.
 ///
-/// **M0 scaffold:** the engine stages are not implemented yet, so this returns
-/// an honest "not yet implemented" [`FetchResult`] — `ok = false`,
-/// `stop_reason = "unimplemented"` — with the remaining milestones surfaced in
-/// `untried_routes`. This lets the CLI and plugin wiring be exercised before the
-/// network stages land in M1+.
-pub fn fetch(url: &str, _opts: &FetchOptions) -> FetchResult {
+/// **Phase 0 slice (M3):** a recognized platform host with a deterministic
+/// official-endpoint route (see [`phase0`], the sole site-aware module) is
+/// fetched directly — [`phase0::route`] rewrites the URL, [`transport::get`] retrieves it with a
+/// plain feed/API client (SSRF-checked redirects; no browser impersonation — a
+/// browser fingerprint would itself trip anti-bot on an official endpoint), and
+/// [`validators::validate_feed`] proves it. A validated feed returns `ok = true`
+/// with the body; a challenged/blocked feed returns `ok = false` and hands off to
+/// the not-yet-built grid via `untried_routes` (R6 — a deterministic route is
+/// still validated, never trusted blindly).
+///
+/// Every **other** host still returns the honest "not yet implemented"
+/// [`FetchResult`] — the generic probe → grid → fallback stages land in M1/M2/M4.
+pub fn fetch(url: &str, opts: &FetchOptions) -> FetchResult {
+    if opts.enable_phase0 {
+        if let Some(route) = phase0::route(url) {
+            return run_phase0(url, &route, opts);
+        }
+    }
+    unimplemented_result(url)
+}
+
+/// Execute a deterministic Phase 0 route: fetch → validate → build the trace.
+fn run_phase0(url: &str, route: &phase0::Route, opts: &FetchOptions) -> FetchResult {
+    let timeout = std::time::Duration::from_secs(opts.timeout_secs);
+
+    let fetched = match transport::get(&route.url, timeout) {
+        Ok(fetched) => fetched,
+        Err(error) => {
+            let attempt = Attempt {
+                phase: "phase0".to_string(),
+                executor: format!("phase0:{}", route.name),
+                url: route.url.clone(),
+                url_transform: "phase0_route".to_string(),
+                impersonate: None,
+                referer: "-".to_string(),
+                status: 0,
+                body_size: 0,
+                verdict: Verdict::Unknown,
+                reasons: vec![error.clone()],
+                elapsed_ms: 0,
+                error: Some(error.clone()),
+            };
+            return FetchResult {
+                ok: false,
+                content: String::new(),
+                final_url: url.to_string(),
+                verdict: Verdict::Unknown,
+                profile_used: None,
+                trace: vec![attempt],
+                summary: format!("phase0 {} transport error: {error}", route.name),
+                planned_attempts: 1,
+                executed_attempts: 1,
+                grid_exhausted: false,
+                stop_reason: "error".to_string(),
+                untried_routes: grid_fallback_routes(),
+                must_invoke_playwright_mcp: false,
+            };
+        }
+    };
+
+    let (verdict, reasons) = validators::validate_feed(fetched.status, &fetched.body);
+    let attempt = Attempt {
+        phase: "phase0".to_string(),
+        executor: format!("phase0:{}", route.name),
+        url: route.url.clone(),
+        url_transform: "phase0_route".to_string(),
+        impersonate: Some(fetched.impersonate.clone()),
+        referer: "-".to_string(),
+        status: fetched.status,
+        body_size: fetched.body.len(),
+        verdict,
+        reasons: reasons.clone(),
+        elapsed_ms: fetched.elapsed_ms,
+        error: None,
+    };
+
+    if verdict.is_ok() {
+        FetchResult {
+            ok: true,
+            content: fetched.body,
+            final_url: fetched.final_url,
+            verdict,
+            profile_used: Some(fetched.impersonate),
+            trace: vec![attempt],
+            summary: format!("phase0 {} → {verdict:?}", route.name),
+            planned_attempts: 1,
+            executed_attempts: 1,
+            grid_exhausted: false,
+            stop_reason: "success".to_string(),
+            untried_routes: Vec::new(),
+            must_invoke_playwright_mcp: false,
+        }
+    } else {
+        // R6: the deterministic route did not validate — hand off to the grid,
+        // don't silently give up on a recognized host.
+        FetchResult {
+            ok: false,
+            content: String::new(),
+            final_url: fetched.final_url,
+            verdict,
+            profile_used: Some(fetched.impersonate),
+            trace: vec![attempt],
+            summary: format!(
+                "phase0 {} did not validate ({verdict:?}): {}",
+                route.name,
+                reasons.join("; ")
+            ),
+            planned_attempts: 1,
+            executed_attempts: 1,
+            grid_exhausted: false,
+            stop_reason: format!("{verdict:?}").to_ascii_lowercase(),
+            untried_routes: grid_fallback_routes(),
+            must_invoke_playwright_mcp: false,
+        }
+    }
+}
+
+/// The not-yet-built routes a failed Phase 0 fetch would escalate to (R6).
+fn grid_fallback_routes() -> Vec<String> {
+    vec![
+        "M2: diversity grid scheduler + WAF detection".to_string(),
+        "M4: Playwright fallback".to_string(),
+    ]
+}
+
+/// Honest "not yet implemented" result for a host Phase 0 does not recognize.
+fn unimplemented_result(url: &str) -> FetchResult {
     FetchResult {
         ok: false,
         content: String::new(),
@@ -59,15 +172,14 @@ pub fn fetch(url: &str, _opts: &FetchOptions) -> FetchResult {
         verdict: Verdict::Unknown,
         profile_used: None,
         trace: Vec::new(),
-        summary: "engine not implemented yet (M0 scaffold)".to_string(),
+        summary: "no Phase 0 route for this host; generic grid not implemented yet".to_string(),
         planned_attempts: 0,
         executed_attempts: 0,
         grid_exhausted: false,
         stop_reason: "unimplemented".to_string(),
         untried_routes: vec![
-            "M1: probe + 4-layer validation + SSRF transport".to_string(),
+            "M1: generic probe + 4-layer validation + SSRF transport".to_string(),
             "M2: diversity grid scheduler + WAF detection".to_string(),
-            "M3: Phase 0 official-API router".to_string(),
             "M4: Playwright fallback".to_string(),
         ],
         must_invoke_playwright_mcp: false,
