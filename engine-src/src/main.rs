@@ -3,22 +3,28 @@
 //! Usage:
 //! ```text
 //! adaptive-fetch "<URL>" [--selector "<CSS>"]... [--device auto|desktop|mobile] [--trace] [--json]
+//! adaptive-fetch check-url "<URL>" [--presets P] [--json]
 //! ```
-//! Exit code: `0` = validated success, `1` = failure (with `untried_routes`).
+//! Fetch exit code: `0` = validated success, `1` = failure (with `untried_routes`).
+//! `check-url` exit code: `10` = preset matched, `0` = no match or fail-soft error.
 
+use std::path::PathBuf;
 use std::process::ExitCode;
 
-use adaptive_fetch::{fetch, DeviceClass, FetchOptions};
-use clap::Parser;
+use adaptive_fetch::{fetch, presets, DeviceClass, FetchOptions};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
     name = "adaptive-fetch",
     version,
-    about = "Resilient site-agnostic page reader — auto-bypasses blocked sites."
+    about = "Resilient site-agnostic page reader — auto-bypasses blocked sites.",
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true
 )]
 struct Cli {
     /// URL to fetch.
+    #[arg(value_name = "URL")]
     url: String,
 
     /// CSS selector proving success (repeatable). Strongest positive proof.
@@ -36,11 +42,55 @@ struct Cli {
     /// Emit the full result (metadata + trace) as JSON to stdout.
     #[arg(long)]
     json: bool,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Check a URL against url_presets.toml (used by the WebFetch PreToolUse hook).
+    CheckUrl {
+        /// URL to check.
+        url: String,
+        /// Path to url_presets.toml (falls back to $ADAPTIVE_FETCH_PRESETS).
+        #[arg(long)]
+        presets: Option<PathBuf>,
+        /// Emit the match result as JSON.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = parse_cli();
 
+    match cli.command {
+        Some(Command::CheckUrl { url, presets, json }) => run_check_url(&url, presets, json),
+        None => run_fetch(cli),
+    }
+}
+
+fn parse_cli() -> Cli {
+    let mut matches = Cli::command().get_matches();
+
+    if matches.subcommand_name().is_some() {
+        let command =
+            Command::from_arg_matches_mut(&mut matches).unwrap_or_else(|error| error.exit());
+        return Cli {
+            url: String::new(),
+            selectors: Vec::new(),
+            device: DeviceClass::Auto,
+            trace: false,
+            json: false,
+            command: Some(command),
+        };
+    }
+
+    Cli::from_arg_matches_mut(&mut matches).unwrap_or_else(|error| error.exit())
+}
+
+fn run_fetch(cli: Cli) -> ExitCode {
     let opts = FetchOptions {
         success_selectors: cli.selectors,
         device_class: cli.device,
@@ -109,4 +159,54 @@ fn main() -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+fn run_check_url(url: &str, presets: Option<PathBuf>, json: bool) -> ExitCode {
+    let presets_path = presets.or_else(|| {
+        std::env::var("ADAPTIVE_FETCH_PRESETS")
+            .ok()
+            .map(PathBuf::from)
+    });
+    let matched = presets_path.and_then(|path| match presets::load(&path) {
+        Ok(file) => file.match_url(url).cloned(),
+        Err(error) => {
+            eprintln!("adaptive-fetch check-url: {error}");
+            None
+        }
+    });
+
+    let Some(preset) = matched else {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({ "matched": false }))
+                    .expect("static match result should serialize")
+            );
+        }
+        return ExitCode::SUCCESS;
+    };
+
+    let suggested_command = preset.suggested_command(url);
+    if json {
+        let output = serde_json::json!({
+            "matched": true,
+            "reason": preset.reason,
+            "device": preset.device,
+            "selectors": preset.selectors,
+            "impersonate_first": preset.impersonate_first,
+            "referer_strategy": preset.referer_strategy,
+            "suggested_command": suggested_command,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&output).expect("preset match result should serialize")
+        );
+    } else {
+        println!("{suggested_command}");
+        if let Some(reason) = &preset.reason {
+            eprintln!("{reason}");
+        }
+    }
+
+    ExitCode::from(10)
 }

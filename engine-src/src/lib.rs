@@ -17,6 +17,7 @@
 //! domain, selector, or brand. Site knowledge enters only via [`FetchOptions`].
 
 mod options;
+pub mod presets;
 mod result;
 
 // Engine stages (RFC 0001 §4). Stubs now; filled in across milestones M1–M5.
@@ -31,6 +32,7 @@ mod validators; // M1: 4-layer validation, Verdict classification
 mod waf_detector; // M2: ranked WAF-product detection
 
 pub use options::{DeviceClass, FetchOptions, UserHint};
+pub use presets::{PresetFile, UrlPreset};
 pub use result::{Attempt, FetchResult, Verdict};
 
 /// Fetch `url`, bypassing blocks site-agnostically.

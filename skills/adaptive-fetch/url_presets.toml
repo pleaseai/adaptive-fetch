@@ -1,0 +1,30 @@
+# URL presets are caller-editable runtime configuration, not engine source.
+# Presets are evaluated top-to-bottom; the first matching `match` glob wins.
+# `match` supports `*` as its only wildcard. `reason` explains the routing choice,
+# `device` may be auto/desktop/mobile, and `selectors` may list success selectors.
+# `impersonate_first` and `referer_strategy` are optional routing hints; they are
+# reported to the caller but are not emitted as CLI flags.
+#
+# The named sites below are editable, caller-supplied runtime hints under
+# RFC 0001 §4.5/§7. They are NOT engine bias: the engine code remains
+# site-agnostic and contains no knowledge of these examples.
+
+version = 1
+
+# Editable example: route matching pages through the adaptive fetch path.
+[[presets]]
+match = "*://*.reddit.com/*"
+reason = "Reddit gates non-RSS pages behind a WAF; adaptive-fetch routes via the Phase 0 RSS endpoint."
+device = "desktop"
+
+# Editable example: route matching pages through the adaptive fetch path.
+[[presets]]
+match = "*://twitter.com/*"
+reason = "X/Twitter blocks plain WebFetch; adaptive-fetch uses the syndication route."
+device = "desktop"
+
+# Editable example: route matching pages through the adaptive fetch path.
+[[presets]]
+match = "*://x.com/*"
+reason = "X/Twitter blocks plain WebFetch; adaptive-fetch uses the syndication route."
+device = "desktop"

@@ -26,3 +26,19 @@ adaptive-fetch "<URL>" [--selector "<CSS>"]... [--device auto|desktop|mobile] [-
 
 Until M1+ ships, treat a non-zero exit and `stop_reason="unimplemented"` as
 "engine not ready" rather than "site is unreachable".
+
+## PreToolUse WebFetch hook + URL presets
+
+The plugin registers a `PreToolUse` hook for `WebFetch`: `hooks.json` invokes
+`hooks/webfetch-guard.sh`, which runs `adaptive-fetch check-url` against
+`skills/adaptive-fetch/url_presets.toml`. When the first matching preset is
+found, the hook denies `WebFetch` and tells the agent to run the suggested
+`adaptive-fetch "<url>" …` command instead.
+
+The presets file is user-editable runtime configuration. Site knowledge stays
+there and never enters the engine, preserving the site-agnostic invariant. The
+hook is fail-open: if the binary, `jq`, input, presets, or output is unavailable
+or invalid, `WebFetch` proceeds normally.
+
+Even in the M0 scaffold, this hook and routing layer are active. The engine's
+fetch operation itself remains a stub until later milestones land.

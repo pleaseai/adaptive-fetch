@@ -134,6 +134,24 @@ exposes: `ok`, `content`, `final_url`, `verdict`, `profile_used`, `trace[]`,
 `planned_attempts`, `executed_attempts`, `grid_exhausted`, `stop_reason`,
 `untried_routes[]`, `must_invoke_playwright_mcp`.
 
+### 3.1 WebFetch hook + URL presets
+
+A `PreToolUse` hook (`hooks.json` → `hooks/webfetch-guard.sh`) intercepts
+`WebFetch` calls *before* they run and, for hosts a user has flagged as hard,
+steers them through the engine instead of letting `WebFetch` fail first. The hook
+shells out to a site-agnostic `adaptive-fetch check-url "<URL>" --presets <file>
+--json` subcommand, which matches the URL against
+`skills/adaptive-fetch/url_presets.toml` (first glob match wins) and, on a match,
+tells the hook to **deny** the built-in `WebFetch` with a `permissionDecision`
+reason carrying the suggested `adaptive-fetch …` command.
+
+Invariant fit: the `check-url` code (`engine-src/src/presets.rs`) names no site —
+domains live only in `url_presets.toml`, a caller-supplied **runtime** config
+(the same sanctioned channel as `success_selectors` / `user_hint`, §7). The hook
+is **fail-open**: any error (missing binary, `jq`, or presets file; parse
+failure; no match) lets `WebFetch` proceed unchanged. `check-url` exits `10` on a
+match, `0` otherwise.
+
 ---
 
 ## 4. Engine architecture (port of the insane-search invariants)
