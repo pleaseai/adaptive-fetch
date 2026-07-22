@@ -1,0 +1,25 @@
+.github/dependabot.yml
+  s_ce81ad51033e7e::t_c924875558f646 10-13
+  s_ce81ad51033e7e::t_fe8b13f7b10cd4 26-27
+.github/workflows/coverage.yml
+  s_ce81ad51033e7e::t_3c51bf5c64b4ee 26
+.github/workflows/release-please.yml
+  s_ce81ad51033e7e::t_fa5ec64d12842f 25-27
+  s_ce81ad51033e7e::t_7093969f6fb617 7-9,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "2911d52ef457f8447874147df86bc018e7eac78f",
+  "prompts": {},
+  "sessions": {
+    "s_ce81ad51033e7e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cda731e3-238f-4e0b-b42c-46234b80d1c0",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Minsu Lee <minsu.lee@pleaseai.dev>"
+    }
+  }
+}
