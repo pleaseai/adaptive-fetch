@@ -52,8 +52,37 @@ pub fn validate_feed(status: u16, body: &str) -> (Verdict, Vec<String>) {
     )
 }
 
+/// Whether the (lowercased) head is a real RSS/Atom/RDF feed — decided by the
+/// **root element**, not a substring, so an HTML page that merely contains
+/// `<feedback>`, a stray `<feed>` in its body, or an embedded XML example is not
+/// mistaken for a feed.
 fn is_feed(lower_head: &str) -> bool {
-    lower_head.contains("<rss") || lower_head.contains("<feed") || lower_head.contains("<rdf:rdf")
+    matches!(root_element(lower_head), Some("rss" | "feed" | "rdf:rdf"))
+}
+
+/// The name of the first XML element in `lower_head`, skipping a leading BOM,
+/// whitespace, an `<?xml …?>` declaration, comments, and a doctype. `None` if the
+/// document does not start with an element.
+fn root_element(lower_head: &str) -> Option<&str> {
+    let mut rest = lower_head.strip_prefix('\u{feff}').unwrap_or(lower_head);
+    loop {
+        rest = rest.trim_start();
+        rest = if let Some(after) = rest.strip_prefix("<?") {
+            &after[after.find("?>")? + 2..] // xml declaration / processing instruction
+        } else if let Some(after) = rest.strip_prefix("<!--") {
+            &after[after.find("-->")? + 3..] // comment
+        } else if let Some(after) = rest.strip_prefix("<!") {
+            &after[after.find('>')? + 1..] // doctype / declaration
+        } else if let Some(after) = rest.strip_prefix('<') {
+            // First real element — its name runs up to whitespace, '>', or '/'.
+            let end = after
+                .find(|c: char| c.is_whitespace() || c == '>' || c == '/')
+                .unwrap_or(after.len());
+            return Some(&after[..end]);
+        } else {
+            return None;
+        };
+    }
 }
 
 #[cfg(test)]
@@ -79,6 +108,27 @@ mod tests {
     fn two_hundred_non_feed_is_not_success() {
         let (v, _) = validate_feed(200, "<html><body>totally normal page</body></html>");
         assert_eq!(v, Verdict::Challenge);
+    }
+
+    #[test]
+    fn html_containing_feed_substrings_is_not_a_feed() {
+        // The check is on the ROOT element — an HTML page with `<feedback>` or an
+        // embedded `<feed>`/`<rss>` example must not be mistaken for a feed.
+        let (v, _) = validate_feed(
+            200,
+            "<!doctype html><html><body><feedback>hi</feedback><feed>x</feed>\
+             <pre>&lt;rss&gt;example&lt;/rss&gt;</pre></body></html>",
+        );
+        assert_eq!(v, Verdict::Challenge);
+    }
+
+    #[test]
+    fn accepts_feed_with_bom_declaration_and_comments() {
+        let (v, _) = validate_feed(
+            200,
+            "\u{feff}<?xml version=\"1.0\"?>\n<!-- generated --><feed xmlns=\"…\">…</feed>",
+        );
+        assert_eq!(v, Verdict::WeakOk);
     }
 
     #[test]

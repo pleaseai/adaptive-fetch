@@ -38,6 +38,10 @@ const FEED_ACCEPT: &str =
 /// Redirect hop cap. Each hop is SSRF-checked before it is followed.
 const MAX_REDIRECTS: usize = 10;
 
+/// Body read cap. Validation only inspects a small prefix, so buffering an
+/// unbounded response would only risk exhausting memory on a huge or hostile one.
+const MAX_BODY_BYTES: usize = 10 * 1024 * 1024;
+
 /// Outcome of one GET, after manual redirect resolution.
 #[derive(Debug, Clone)]
 pub struct Fetched {
@@ -53,6 +57,15 @@ pub struct Fetched {
 /// re-checked by [`safety::classify_url`]. Synchronous wrapper over the async
 /// `wreq` client so the public [`crate::fetch`] API stays sync.
 pub fn get(url: &str, timeout: Duration) -> Result<Fetched, String> {
+    // A nested current-thread runtime would panic if a library caller invokes the
+    // sync fetch() from inside an existing Tokio runtime; return an error instead
+    // so the process can't crash. (The CLI is fully sync, so it never hits this.)
+    if tokio::runtime::Handle::try_current().is_ok() {
+        return Err(
+            "synchronous fetch() cannot run inside a Tokio runtime — call it from a blocking thread"
+                .to_string(),
+        );
+    }
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -73,9 +86,12 @@ async fn get_async(url: &str, timeout: Duration) -> Result<Fetched, String> {
     let mut current = url.to_string();
 
     for _hop in 0..=MAX_REDIRECTS {
-        safety::classify_url(&current)?;
+        // Resolve + SSRF-check every hop before connecting, so a redirect to a
+        // host that *resolves* to a private/metadata IP is blocked, not just an
+        // IP-literal one.
+        safety::classify_url_resolved(&current).await?;
 
-        let response = client
+        let mut response = client
             .get(current.as_str())
             .header(USER_AGENT, FEED_UA)
             .header(ACCEPT, FEED_ACCEPT)
@@ -100,10 +116,24 @@ async fn get_async(url: &str, timeout: Duration) -> Result<Fetched, String> {
 
         let status_u16 = status.as_u16();
         let final_url = response.url().to_string();
-        let body = response
-            .text()
-            .await
-            .map_err(|error| format!("read body: {error}"))?;
+        // Read the body with a hard cap so a huge/hostile response can't exhaust
+        // memory. Feeds are UTF-8; a truncated tail never affects validation
+        // (which inspects only the first few KB).
+        let mut buf: Vec<u8> = Vec::new();
+        while buf.len() < MAX_BODY_BYTES {
+            match response
+                .chunk()
+                .await
+                .map_err(|error| format!("read body: {error}"))?
+            {
+                Some(chunk) => {
+                    let take = (MAX_BODY_BYTES - buf.len()).min(chunk.len());
+                    buf.extend_from_slice(&chunk[..take]);
+                }
+                None => break,
+            }
+        }
+        let body = String::from_utf8_lossy(&buf).into_owned();
         return Ok(Fetched {
             status: status_u16,
             final_url,

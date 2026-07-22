@@ -4,9 +4,15 @@
 //! before any request is made, and is re-run on every redirect hop by the
 //! transport (redirects are followed manually so each hop is re-checked).
 //!
-//! M1 slice: IP-literal + well-known-name checks. Full DNS-resolution SSRF
-//! (resolving a hostname to its A/AAAA records and checking each, closing the
-//! DNS-rebinding gap) lands with the generic transport — tracked as a known gap.
+//! Two layers:
+//! - [`classify_url`] — sync, offline: scheme + IP-literal + well-known-name
+//!   checks. Fast and unit-testable with no network.
+//! - [`classify_url_resolved`] — async: runs [`classify_url`], then resolves a
+//!   hostname and rejects if ANY resolved address is blocked, closing the
+//!   name-only gap where a host (e.g. a redirect target) points at a private /
+//!   metadata IP. Pinning the resolved IP into the actual connection (fully
+//!   closing the DNS-rebinding TOCTOU window, since `wreq` re-resolves) is a
+//!   later hardening for the generic transport.
 
 use std::net::{IpAddr, Ipv6Addr};
 use url::Url;
@@ -52,6 +58,42 @@ pub fn classify_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Async companion to [`classify_url`]: runs the sync checks, then — for a real
+/// hostname (not an IP literal) — resolves it and rejects if any resolved address
+/// is blocked. This closes the name-only gap where a hostname resolves to a
+/// private / loopback / metadata IP (e.g. a redirect target under attacker
+/// influence). A residual DNS-rebinding TOCTOU window remains because `wreq`
+/// re-resolves at connect time; pinning the checked IP is a later hardening.
+pub async fn classify_url_resolved(url: &str) -> Result<(), String> {
+    classify_url(url)?;
+
+    let parsed = Url::parse(url).map_err(|error| format!("invalid url: {error}"))?;
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "url has no host".to_string())?;
+    let host = host.strip_suffix('.').unwrap_or(host);
+
+    // IP literals were already fully vetted by classify_url — only resolve names.
+    let literal = host
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+        .unwrap_or(host);
+    if literal.parse::<IpAddr>().is_ok() {
+        return Ok(());
+    }
+
+    let port = parsed.port_or_known_default().unwrap_or(443);
+    let resolved = tokio::net::lookup_host((host, port))
+        .await
+        .map_err(|error| format!("dns resolution failed for {host}: {error}"))?;
+    for addr in resolved {
+        if is_blocked_ip(addr.ip()) {
+            return Err(format!("blocked address: {host} resolves to {}", addr.ip()));
+        }
+    }
+    Ok(())
+}
+
 /// Whether `ip` is in a private / loopback / link-local / metadata / reserved
 /// range that must never be fetched.
 fn is_blocked_ip(ip: IpAddr) -> bool {
@@ -66,7 +108,11 @@ fn is_blocked_ip(ip: IpAddr) -> bool {
                 || v4.octets()[0] == 0 // 0.0.0.0/8
         }
         IpAddr::V6(v6) => {
-            v6.is_loopback()
+            // An IPv4-mapped address (`::ffff:a.b.c.d`) reaches IPv4 space — check
+            // the embedded v4 against the v4 rules so `[::ffff:10.0.0.1]` is blocked.
+            v6.to_ipv4_mapped()
+                .is_some_and(|v4| is_blocked_ip(IpAddr::V4(v4)))
+                || v6.is_loopback()
                 || v6.is_unspecified()
                 || is_unique_local(v6) // fc00::/7
                 || is_link_local(v6) // fe80::/10
@@ -105,6 +151,17 @@ mod tests {
     }
 
     #[test]
+    fn blocks_ipv4_mapped_ipv6_private_targets() {
+        // `::ffff:10.0.0.1` and `::ffff:169.254.169.254` reach private/metadata
+        // IPv4 space through the v6 branch — must be blocked, not followed.
+        assert!(classify_url("http://[::ffff:10.0.0.1]/").is_err());
+        assert!(classify_url("http://[::ffff:169.254.169.254]/").is_err());
+        assert!(classify_url("http://[::ffff:127.0.0.1]/").is_err());
+        // A mapped *public* address is still allowed.
+        assert!(classify_url("http://[::ffff:93.184.216.34]/").is_ok());
+    }
+
+    #[test]
     fn rejects_non_http_schemes() {
         assert!(classify_url("file:///etc/passwd").is_err());
         assert!(classify_url("gopher://x/").is_err());
@@ -113,5 +170,28 @@ mod tests {
     #[test]
     fn trailing_dot_host_is_still_classified() {
         assert!(classify_url("http://127.0.0.1./").is_err());
+    }
+
+    #[test]
+    fn resolved_delegates_sync_checks_and_skips_literals() {
+        // Offline: literals are vetted synchronously (no DNS lookup), and the
+        // well-known-name check still fires. The real A/AAAA-resolution branch is
+        // exercised by the live Phase 0 fetch (a public host resolves + passes).
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        assert!(rt
+            .block_on(classify_url_resolved("https://93.184.216.34/"))
+            .is_ok());
+        assert!(rt
+            .block_on(classify_url_resolved("http://10.0.0.5/"))
+            .is_err());
+        assert!(rt
+            .block_on(classify_url_resolved("http://[::ffff:10.0.0.1]/"))
+            .is_err());
+        assert!(rt
+            .block_on(classify_url_resolved("http://localhost/"))
+            .is_err());
     }
 }
